@@ -3,437 +3,113 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>RDR2 Türkçe Dublaj</title>
-
+<title>PS5 Türkçe Dublaj V3</title>
 <style>
-body{
-font-family:system-ui;
-margin:0;
-background:#111;
-color:#eee
-}
-main{
-max-width:900px;
-margin:auto;
-padding:16px
-}
-video{
-width:100%;
-background:#000;
-border-radius:12px
-}
-button,select{
-font-size:16px;
-padding:10px;
-margin:5px 0;
-border-radius:9px
-}
-.card{
-background:#1d1d1d;
-padding:14px;
-border-radius:12px;
-margin:12px 0
-}
-small{
-color:#aaa
-}
+body{font-family:system-ui;margin:0;background:#111;color:#eee}
+main{max-width:900px;margin:auto;padding:16px}
+video{width:100%;background:#000;border-radius:12px}
+button,select{font-size:16px;padding:10px;margin:5px 0;border-radius:9px}
+.card{background:#1d1d1d;padding:14px;border-radius:12px;margin:12px 0}
+small{color:#aaa}
 </style>
 </head>
-
 <body>
 <main>
-
-<h1>🎮 RDR2 Türkçe Dublaj V2</h1>
-
+<h1>🎮 PS5 Türkçe Dublaj V3</h1>
 <div class="card">
 <video id="v" autoplay playsinline muted></video>
-
 <button id="s">📷 Kamerayı Başlat</button>
 <button id="x" disabled>⏹ Durdur</button>
 </div>
-
 <div class="card">
-
-Tarama:
-
-<select id="i">
-<option value="1200">1.2 sn</option>
-<option value="1800" selected>1.8 sn</option>
-<option value="2500">2.5 sn</option>
-</select>
-
-<br>
-
-Ses:
-
-<select id="m">
-<option value="auto">Otomatik</option>
-<option value="male1">Erkek 1</option>
-<option value="male2">Erkek 2</option>
-<option value="female">Kadın 1</option>
-</select>
-
+<b>Oyun:</b>
+<select id="game"><option value="auto">Otomatik</option><option>RDR2</option><option>Mafia</option><option>GTA</option><option>Diğer</option></select>
+<br><b>Tarama:</b>
+<select id="iv"><option value="1000">1 sn</option><option value="1500" selected>1.5 sn</option><option value="2000">2 sn</option></select>
+<br><b>Ses:</b>
+<select id="voiceMode"><option value="auto">Otomatik</option><option value="male1">Erkek 1</option><option value="male2">Erkek 2</option><option value="female">Kadın 1</option></select>
 </div>
-
-<div class="card">
-
-<b>İngilizce:</b>
-<div id="d">—</div>
-
-<br>
-
-<b>Türkçe:</b>
-<div id="t">—</div>
-
-<p id="st">Hazır — TV'deki altyazıyı kameraya göster.</p>
-
-</div>
-
+<div class="card"><b>Algılanan:</b><div id="d">—</div><br><b>Türkçe:</b><div id="t">—</div><p id="st">Hazır. TV'deki altyazıyı kameraya göster.</p></div>
 <canvas id="c" style="display:none"></canvas>
-
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-
 <script>
+const v=document.getElementById('v'),c=document.getElementById('c'),s=document.getElementById('s'),x=document.getElementById('x'),d=document.getElementById('d'),t=document.getElementById('t'),st=document.getElementById('st'),iv=document.getElementById('iv'),voiceMode=document.getElementById('voiceMode');
+let stream=null,timer=null,busy=false,lastText='',lastSpoken='',voices=[];
+speechSynthesis.onvoiceschanged=()=>voices=speechSynthesis.getVoices(); voices=speechSynthesis.getVoices();
 
-const v=document.getElementById('v');
-const c=document.getElementById('c');
-const s=document.getElementById('s');
-const x=document.getElementById('x');
-const d=document.getElementById('d');
-const t=document.getElementById('t');
-const st=document.getElementById('st');
-const iv=document.getElementById('i');
-const mode=document.getElementById('m');
-
-let stream;
-let timer;
-let busy=false;
-let last='';
-let spoken='';
-let voices=[];
-
-speechSynthesis.onvoiceschanged=()=>{
-voices=speechSynthesis.getVoices()
-};
-
-voices=speechSynthesis.getVoices();
-
-
-function voice(){
-
-let q=voices.filter(v=>/^tr/i.test(v.lang));
-
-if(!q.length)return voices[0];
-
-if(mode.value==='female')return q[1]||q[0];
-
-if(mode.value==='male2')return q[2]||q[1]||q[0];
-
-return q[0];
-
+function getVoice(){
+ const tr=voices.filter(q=>/^tr/i.test(q.lang));
+ if(!tr.length)return voices[0];
+ if(voiceMode.value==='female')return tr[1]||tr[0];
+ if(voiceMode.value==='male2')return tr[2]||tr[1]||tr[0];
+ return tr[0];
 }
-
-
-async function tr(q){
-
-let u=
-'https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=tr&dt=t&q='
-+encodeURIComponent(q);
-
-let r=await fetch(u);
-
-let a=await r.json();
-
-return (a[0]||[]).map(z=>z[0]).join('');
-
+async function translateTR(q){
+ const url='https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=tr&dt=t&q='+encodeURIComponent(q);
+ const r=await fetch(url); if(!r.ok)throw new Error('Çeviri bağlantısı başarısız');
+ const a=await r.json(); return (a[0]||[]).map(z=>z[0]).join('');
 }
-
-
-function say(q){
-
-if(!q||q===spoken)return;
-
-spoken=q;
-
-speechSynthesis.cancel();
-
-let u=new SpeechSynthesisUtterance(q);
-
-u.lang='tr-TR';
-
-u.rate=1.02;
-
-let z=voice();
-
-if(z)u.voice=z;
-
-speechSynthesis.speak(u);
-
+function speak(q){
+ if(!q||q===lastSpoken)return;
+ lastSpoken=q; speechSynthesis.cancel();
+ const u=new SpeechSynthesisUtterance(q); u.lang='tr-TR'; u.rate=1.02;
+ const voice=getVoice(); if(voice)u.voice=voice; speechSynthesis.speak(u);
 }
-
-
-/* OCR GÖRÜNTÜ HAZIRLAMA */
-
-function prepareImage(){
-
-let w=v.videoWidth;
-let h=v.videoHeight;
-
-if(!w||!h)return false;
-
-
-/*
-RDR2 altyazıları genellikle ekranın alt bölümündedir.
-Biraz daha geniş alan alıyoruz.
-*/
-
-let y=Math.floor(h*0.50);
-let hh=Math.floor(h*0.45);
-
-
-/*
-OCR için görüntüyü 2 kat büyütüyoruz.
-*/
-
-c.width=w*2;
-c.height=hh*2;
-
-let ctx=c.getContext('2d');
-
-ctx.drawImage(
-v,
-0,y,w,hh,
-0,0,c.width,c.height
-);
-
-
-/*
-Görüntüyü gri tona ve yüksek kontrasta çevir.
-*/
-
-let img=ctx.getImageData(
-0,0,c.width,c.height
-);
-
-let data=img.data;
-
-for(let i=0;i<data.length;i+=4){
-
-let r=data[i];
-let g=data[i+1];
-let b=data[i+2];
-
-let gray=
-0.299*r+
-0.587*g+
-0.114*b;
-
-
-/*
-Kontrast artırma
-*/
-
-gray=(gray-128)*1.8+128;
-
-
-/*
-Altyazı genellikle açık renkli olduğu için
-çok koyu pikselleri siyaha çekiyoruz.
-*/
-
-if(gray>170){
-gray=255;
-}else{
-gray=0;
+function makeImage(mode){
+ const w=v.videoWidth,h=v.videoHeight; if(!w||!h)return false;
+ let y,hh;
+ if(mode===0){y=Math.floor(h*.58);hh=Math.floor(h*.32)}
+ else if(mode===1){y=Math.floor(h*.48);hh=Math.floor(h*.45)}
+ else {y=Math.floor(h*.62);hh=Math.floor(h*.25)}
+ const scale=2; c.width=w*scale; c.height=hh*scale;
+ const ctx=c.getContext('2d'); ctx.drawImage(v,0,y,w,hh,0,0,c.width,c.height);
+ const img=ctx.getImageData(0,0,c.width,c.height),data=img.data;
+ for(let i=0;i<data.length;i+=4){
+  const r=data[i],g=data[i+1],b=data[i+2];
+  let gray=.299*r+.587*g+.114*b; gray=(gray-128)*1.7+128; gray=Math.max(0,Math.min(255,gray));
+  if(gray>175)gray=255; else if(gray<85)gray=0;
+  data[i]=data[i+1]=data[i+2]=gray;
+ }
+ ctx.putImageData(img,0,0); return true;
 }
-
-data[i]=gray;
-data[i+1]=gray;
-data[i+2]=gray;
-
+function cleanOCR(q){return q.replace(/\s+/g,' ').replace(/[|{}[\]<>_=~^`]/g,' ').replace(/\s+/g,' ').trim()}
+function looksUseful(q){if(q.length<4)return false; return (q.match(/[A-Za-z]/g)||[]).length>=3}
+async function ocr(){
+ for(let mode=0;mode<3;mode++){
+  if(!makeImage(mode))return '';
+  const r=await Tesseract.recognize(c,'eng');
+  const q=cleanOCR(r.data.text);
+  if(looksUseful(q))return q;
+ }
+ return '';
 }
-
-ctx.putImageData(img,0,0);
-
-return true;
-
-}
-
-
-/* OCR */
-
 async function scan(){
-
-if(busy||!stream)return;
-
-busy=true;
-
-try{
-
-if(!prepareImage()){
-
-busy=false;
-return;
-
+ if(busy||!stream)return; busy=true;
+ try{
+  st.textContent='Altyazı aranıyor…';
+  const q=await ocr();
+  if(!q){st.textContent='Altyazı bekleniyor…';busy=false;return}
+  if(q===lastText){busy=false;return}
+  lastText=q; d.textContent=q; st.textContent='Türkçeye çevriliyor…';
+  const tr=(await translateTR(q)).trim();
+  if(!tr){st.textContent='Çeviri alınamadı.';busy=false;return}
+  t.textContent=tr; speak(tr); st.textContent='Hazır — yeni altyazı bekleniyor.';
+ }catch(e){st.textContent='Hata: '+e.message}
+ busy=false;
 }
-
-st.textContent='Altyazı taranıyor…';
-
-
-let r=await Tesseract.recognize(
-c,
-'eng',
-{
-logger:m=>{
-if(m.status==='recognizing text'){
-st.textContent=
-'OCR okunuyor: %'+
-Math.round((m.progress||0)*100);
-}
-}
-}
-);
-
-
-let q=r.data.text
-.replace(/\s+/g,' ')
-.trim();
-
-
-/*
-Çok kısa veya anlamsız sonuçları
-mümkün olduğunca ele.
-*/
-
-if(q.length<4){
-
-st.textContent='Altyazı bekleniyor…';
-
-busy=false;
-
-return;
-
-}
-
-
-/*
-Aynı altyazıyı tekrar tekrar çevirmiyoruz.
-*/
-
-if(q===last){
-
-busy=false;
-
-return;
-
-}
-
-
-last=q;
-
-d.textContent=q;
-
-st.textContent='Türkçeye çevriliyor…';
-
-
-let z=(await tr(q)).trim();
-
-if(!z){
-
-st.textContent='Çeviri alınamadı.';
-
-busy=false;
-
-return;
-
-}
-
-
-t.textContent=z;
-
-say(z);
-
-st.textContent='Hazır — yeni altyazı bekleniyor.';
-
-}catch(e){
-
-st.textContent='Hata: '+e.message;
-
-}
-
-busy=false;
-
-}
-
-
-/* KAMERA */
-
 s.onclick=async()=>{
-
-try{
-
-stream=
-await navigator.mediaDevices.getUserMedia({
-
-video:{
-facingMode:{ideal:'environment'}
-},
-
-audio:false
-
-});
-
-v.srcObject=stream;
-
-s.disabled=true;
-
-x.disabled=false;
-
-timer=setInterval(
-scan,
-+iv.value
-);
-
-scan();
-
-}catch(e){
-
-st.textContent=
-'Kamera izni verilemedi: '+e.message;
-
-}
-
+ try{
+  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+  v.srcObject=stream; s.disabled=true; x.disabled=false; lastText=''; lastSpoken='';
+  timer=setInterval(scan,+iv.value); scan();
+ }catch(e){st.textContent='Kamera izni verilemedi: '+e.message}
 };
-
-
-/* DURDUR */
-
 x.onclick=()=>{
-
-if(timer)
-clearInterval(timer);
-
-timer=null;
-
-if(stream)
-stream.getTracks().forEach(z=>z.stop());
-
-stream=null;
-
-v.srcObject=null;
-
-s.disabled=false;
-
-x.disabled=true;
-
-speechSynthesis.cancel();
-
-st.textContent='Durduruldu.';
-
+ if(timer)clearInterval(timer); timer=null;
+ if(stream)stream.getTracks().forEach(q=>q.stop()); stream=null; v.srcObject=null;
+ s.disabled=false; x.disabled=true; speechSynthesis.cancel(); st.textContent='Durduruldu.';
 };
-
 </script>
-
 </main>
 </body>
 </html>
